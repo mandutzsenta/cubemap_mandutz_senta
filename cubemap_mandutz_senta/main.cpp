@@ -18,6 +18,7 @@
 int mapNum = 0;
 int shaderNum = 0;
 int objectNum = 0;
+int secondObjectNum = 0;
 bool cursor = 0;
 
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);									//camera position
@@ -49,7 +50,7 @@ unsigned int loadCubemap(std::vector<std::string> faces)
 			&nrChannels, 0);
 		if (data)
 		{
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA,			//call far each face 
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA,			//call for each face 
 				width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 			stbi_image_free(data);
 		}
@@ -60,9 +61,9 @@ unsigned int loadCubemap(std::vector<std::string> faces)
 			stbi_image_free(data);
 		}
 	}
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);			//wraping specification
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);			//filtering specification
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S,							//set all 3 texture dimensions on clamp to edge to fill space between 2 faces
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S,							//wraping specification; set all 3 texture dimensions on clamp to edge to fill space between 2 faces
 		GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T,
 		GL_CLAMP_TO_EDGE);
@@ -101,9 +102,9 @@ void renderQuad()
 
 		float quadVertices[] = {
 			// positions            // normal         // texcoords  
-			pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y,
-			pos2.x, pos2.y, pos2.z, nm.x, nm.y, nm.z, uv2.x, uv2.y,
-			pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y,
+			pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, 
+			pos2.x, pos2.y, pos2.z, nm.x, nm.y, nm.z, uv2.x, uv2.y, 
+			pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, 
 
 			pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y,
 			pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y,
@@ -445,6 +446,17 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 			objectNum++;
 		}
 	}
+	if (key == GLFW_KEY_L && action == GLFW_PRESS)
+	{
+		if (secondObjectNum >= 3)
+		{
+			secondObjectNum = 0;
+		}
+		else
+		{
+			secondObjectNum++;
+		}
+	}
 	if (key == GLFW_KEY_P && action == GLFW_PRESS)
 	{
 		if (shaderNum >= 2)
@@ -552,13 +564,14 @@ int main()
 
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);				//call resize function on every resize of window
 
-	unsigned int cubeDiffuseMap = loadTexture("objecttextures/container2.png");
-	unsigned int cubeSpecularMap = loadTexture("objecttextures/container2_specular.png");
+	unsigned int cubeDiffuseMap = loadTexture("objecttextures/earth.jpg");
+	unsigned int cubeSpecularMap = loadTexture("objecttextures/earth_specular.jpg");
+	unsigned int cubeNormalMap = loadTexture("objecttextures/earth_normal.jpg");
 
 	Shader normalShader("shaders/shader.vs",
 		"shaders/shader.fs");
 
-	std::string folder = "Witcher1";												//folder name of textures
+	std::string folder = "Space";													//folder name of textures
 	std::string format = ".png";
 	std::vector<std::string> faces													//vector with 6 cubemap textures
 	{
@@ -586,6 +599,7 @@ int main()
 	unsigned int circuitsNormalMap = loadTexture("objecttextures/circuits.jpg");
 	unsigned int metalNormalMap = loadTexture("objecttextures/metal.jpg");
 	unsigned int metalTwoNormalMap = loadTexture("objecttextures/metal2.jpg");
+	unsigned int plainNormalMap = loadTexture("objecttextures/plain.png");
 
 	refractionShader.use();
 	refractionShader.setInt("normalMap", 0);
@@ -628,6 +642,9 @@ int main()
 		switch (shaderNum)
 		{
 		case 0:
+			model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), //rotate the quad to show normal mapping from multiple directions
+				glm::normalize(glm::vec3(0.0, 1.0, 0.0))); 
+
 			normalShader.use();														//every following rendering will use program
 
 			normalShader.setInt("material.diffuse", 0);
@@ -638,7 +655,7 @@ int main()
 			normalShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
 			normalShader.setVec3("lightPos", lightPos);
 			normalShader.setVec3("viewPos", cameraPos);
-
+			normalShader.setInt("normalMap", 2);
 			normalShader.setMat4("model", model);									//set uniforms for light source
 			normalShader.setMat4("view", view);
 			normalShader.setMat4("projection", proj);
@@ -648,15 +665,15 @@ int main()
 
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, cubeSpecularMap);
+
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, cubeNormalMap);
 			break;
 		case 1:
 			reflectionShader.use();													//every following rendering will use program
 
 			reflectionShader.setVec3("lightPos", lightPos);
 			reflectionShader.setVec3("viewPos", cameraPos);
-
-			model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), //rotate the quad to show normal mapping from multiple directions
-				glm::normalize(glm::vec3(1.0, 0.0, 1.0))); 
 
 			reflectionShader.setMat4("model", model);								//set uniforms for light source
 			reflectionShader.setMat4("view", view);
@@ -678,6 +695,8 @@ int main()
 				glBindTexture(GL_TEXTURE_2D, circuitsNormalMap);
 				break;
 			case 3:
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, 0);
 				break;
 			}
 			
@@ -688,13 +707,9 @@ int main()
 			refractionShader.setVec3("lightPos", lightPos);
 			refractionShader.setVec3("viewPos", cameraPos);
 
-			model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), //rotate the quad to show normal mapping from multiple directions
-				glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-
 			refractionShader.setMat4("model", model);								//set uniforms for light source
 			refractionShader.setMat4("view", view);
 			refractionShader.setMat4("projection", proj);
-
 			
 			switch (mapNum)
 			{
@@ -711,27 +726,56 @@ int main()
 				glBindTexture(GL_TEXTURE_2D, waterNormalMap);
 				break;
 			case 3:
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, 0);
 				break;
 			}
-			
-			
-
 			break;
 		}
 		switch (objectNum)
 		{
 		case 0:	
-			
 			renderQuad();
-
 			break;
 		case 1:
-			
-
 			renderCube();
 			break;
 		case 2:
 			renderSphere();
+			break;
+		}
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(0.0f, 0.0f, 2.0f));
+
+		switch (secondObjectNum)
+		{
+		case 0:
+			break;
+		case 1:
+			reflectionShader.use();													//every following rendering will use program
+
+			reflectionShader.setVec3("lightPos", lightPos);
+			reflectionShader.setVec3("viewPos", cameraPos);
+
+			reflectionShader.setMat4("model", model);								//set uniforms for light source
+			reflectionShader.setMat4("view", view);
+			reflectionShader.setMat4("projection", proj);
+			renderCube();
+			break;
+		case 2:
+			refractionShader.use();													//every following rendering will use program
+
+			refractionShader.setVec3("lightPos", lightPos);
+			refractionShader.setVec3("viewPos", cameraPos);
+
+			refractionShader.setMat4("model", model);								//set uniforms for light source
+			refractionShader.setMat4("view", view);
+			refractionShader.setMat4("projection", proj);
+			renderCube();
 			break;
 		}
 
